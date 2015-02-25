@@ -87,11 +87,7 @@
                     var collectedMatches = [];
 
                     var pattern = input.value
-                        //first, escape all the characters in the input that are valid format strings
-                        .replace(formatStringRegex, function(match) {
-                            return "\\" + match;
-                        })
-                        //next, replace the date components with their associated format string
+                        // replace the date components with their associated format string
                         .replace(inputMatcher, function(match) {
                             var formatter = formats[match];
                             if(formatter.callback) {
