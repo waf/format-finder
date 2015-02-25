@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title></title>
+        <style>
+            body {
+                font-family:sans-serif;
+            }
+            p, form, #input  {
+                text-align:center;
+                font-size:16pt;
+            }
+            #input {
+                padding:0.2em;
+                margin:0.2em;
+                width: 36em;
+            }
+            #output {
+                font-size:30pt;
+            }
+            #output .match {
+                font-weight:bold;
+            }
+            #explanation {
+                display:none;
+                text-align:left;
+                width:36em;
+                margin:0 auto;
+                border-collapse:collapse;
+                border-spacing:0;
+            }
+            #explanation th {
+                background-color:#eee;
+            }
+            #explanation td, #explanation th {
+                padding:0.4em;
+            }
+            #explanation tr:nth-child(even) {
+                background-color:#E6F6FF;
+            }
+            #explanation #description {
+                width:400px;
+            }
+        </style>
+    </head>
+    <body>
+        <p>How should we format the date:</p>
+        <p>Monday, March 1st, 2009 at 8:04AM (5.6666666 seconds, UTC-7)?</p>
+        <form>
+            <p>
+                <input type="text" id="input" autofocus spellcheck="false" />
+            </p>
+            <label><input type="radio" name="clockMode" id="mode-24-hour" checked>24-Hour</label>
+            <label><input type="radio" name="clockMode" id="mode-12-hour">12-Hour</label>
+        </form>
+        <p id="output"></p>
+        <table id="explanation">
+            <thead>
+                <th>Format</th>
+                <th>Match</th>
+                <th id="description">Description</th>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+        <script>
+            window.addEventListener("load", function() {
+                // references to HTML elements
+                var form = document.querySelector("form");
+                var input = form.querySelector("#input");
+                var output = document.querySelector("#output");
+                var explanation = document.querySelector("#explanation");
+                var explanationRows = explanation.querySelector("tbody");
+
+                // create our regex to detect when the user types something that could be replaced by a format string
+                var formatMatches = Object.keys(formats);
+                var inputMatcher = new RegExp(formatMatches.join("|"),"g"); 
+                // read the list of all format strings, so we can properly escape them
+                var formatStringRegex = new RegExp(formatMatches.map(function(key) {
+                        return formats[key].formatString;
+                    }).filter(function(formatString) {
+                        return /[a-zA-Z]/.test(formatString);
+                    }).join("|"), "g");
+
+                function render() {
+                    var collectedMatches = [];
+
+                    var pattern = input.value
+                        //first, escape all the characters in the input that are valid format strings
+                        .replace(formatStringRegex, function(match) {
+                            return "\\" + match;
+                        })
+                        //next, replace the date components with their associated format string
+                        .replace(inputMatcher, function(match) {
+                            var formatter = formats[match];
+                            if(formatter.callback) {
+                                formatter = formatter.callback(formatter);
+                            }
+                            collectedMatches.push({
+                                match: match,
+                                formatter: formatter
+                            });
+                            return "<span class='match'>" + formatter.formatString + "</span>";
+                        });
+
+                    // display result
+                    output.innerHTML = pattern;
+                    explanationRows.innerHTML = collectedMatches.map(function(element) {
+                        return "<tr><td>" + element.formatter.formatString + "</td><td>" + 
+                                            element.match + "</td><td>" + 
+                                            element.formatter.description + "</td></tr>";
+                    }).join("");
+                    explanation.style.display = collectedMatches.length ? "table" : "none";
+                }
+
+                // rerun whever the user types in the input box or changes the radio buttons
+                input.addEventListener("keyup", render, false);
+                form.addEventListener("click", render, false);
+            }, false);
+
+            var formats = {
+                "8" : {
+                    description : "The hour, using a 12-hour clock from 1 to 12.",
+                    formatString : "h", 
+                    callback : function(format) {
+                        return document.querySelector("#mode-24-hour").checked ? {
+                            formatString: "H",
+                            description : "The hour, using a 24-hour clock from 0 to 23.",
+                        } : format;
+                    }
+                },
+                "08" : {
+                    description : "The hour, using a 12-hour clock from 01 to 12.",
+                    formatString : "hh", 
+                    callback : function(format) {
+                        return document.querySelector("#mode-24-hour").checked ? {
+                            formatString: "HH",
+                            description : "The hour, using a 24-hour clock from 00 to 23.",
+                        } : format;
+                    }
+                },
+                "1" : {
+                    description : "The day of the month, from 1 through 31.",
+                    formatString : "d", 
+                },
+                "01" : {
+                    description : "The day of the month, from 01 through 31.",
+                    formatString : "dd", 
+                },
+                "Monday" : {
+                    description : "The full name of the day of the week.",
+                    formatString : "dddd", 
+                },
+                "Mon" : {
+                    description : "The abbreviated name of the day of the week.",
+                    formatString : "ddd", 
+                },
+                "6666666" : {
+                    description : "The ten millionths of a second in a date and time value.",
+                    formatString : "fffffff", 
+                    alternate : {
+                        "FFFFFFF" : "If non-zero, the ten millionths of a second in a date and time value.",
+                    }
+                },
+                "666666" : {
+                    description : "The millionths of a second in a date and time value.",
+                    formatString : "ffffff", 
+                    alternate : {
+                        "FFFFFF" : "If non-zero, the millionths of a second in a date and time value.",
+                    }
+                },
+                "66666" : {
+                    description : "The hundred thousandths of a second in a date and time value.",
+                    formatString : "fffff", 
+                    alternate : {
+                        "FFFFF" : "If non-zero, the hundred thousandths of a second in a date and time value.",
+                    }
+                },
+                "6666" : {
+                    description : "The ten thousandths of a second in a date and time value.",
+                    formatString : "ffff", 
+                    alternate : {
+                        "FFFF" : "If non-zero, the ten thousandths of a second in a date and time value.",
+                    }
+                },
+                "666" : {
+                    description : "The milliseconds in a date and time value.",
+                    formatString : "fff", 
+                    alternate : {
+                        "FFF" : "If non-zero, the milliseconds in a date and time value.",
+                    }
+                },
+                "66" : {
+                    description : "The hundredths of a second in a date and time value.",
+                    formatString : "ff", 
+                    alternate : {
+                        "FF" : "If non-zero, the hundredths of a second in a date and time value.",
+                    }
+                },
+                "6" : {
+                    description : "The tenths of a second in a date and time value.",
+                    formatString : "f", 
+                    alternate : {
+                        "F" : "If non-zero, the tenths of a second in a date and time value.",
+                    }
+                },
+                "A\.D\." : {
+                    description : "The period or era.",
+                    formatString : "g", 
+                    alternate:  {
+                        "gg" : "An alternate representation of the same thing."
+                    }
+                },
+                "4" : {
+                    description : "The minute, from 0 through 59.",
+                    formatString : "m", 
+                },
+                "04" : {
+                    description : "The minute, from 00 through 59.",
+                    formatString : "mm", 
+                },
+                "3" : {
+                    description : "The month, from 1 through 12.",
+                    formatString : "M", 
+                },
+                "03" : {
+                    description : "The month, from 01 through 12.",
+                    formatString : "MM", 
+                },
+                "March" : {
+                    description : "The full name of the month.",
+                    formatString : "MMMM", 
+                },
+                "Mar" : {
+                    description : "The abbreviated name of the month.",
+                    formatString : "MMM", 
+                },
+                "5" : {
+                    description : "The second, from 0 through 59.",
+                    formatString : "s", 
+                },
+                "05" : {
+                    description : "The second, from 00 through 59.",
+                    formatString : "ss", 
+                },
+                "PM" : {
+                    description : "The AM/PM designator.",
+                    formatString : "tt", 
+                },
+                "P" : {
+                    description : "The first character of the AM/PM designator.",
+                    formatString : "t", 
+                },
+                "9" : {
+                    description : "The year, from 0 to 99.",
+                    formatString : "y", 
+                },
+                "09" : {
+                    description : "The year, from 00 to 99.",
+                    formatString : "yy", 
+                },
+                "2009" : {
+                    description : "The year as a four-digit number.",
+                    formatString : "yyyy", 
+                    alternate: {
+                        "yyy" : "The year, with a minimum of three digits.",
+                    }
+                },
+                "02009" : {
+                    description : "The year as a five-digit number.",
+                    formatString : "yyyyy", 
+                },
+                "-07:00" : {
+                    description : "If the date is local time, shows the hours and minutes offset from UTC. If date is UTC, displays the letter 'Z'",
+                    formatString : "K", 
+                    alternate: {
+                        "zzz": "Hours and minutes offset from UTC"
+                    }
+                },
+                "-07" : {
+                    description : "Hours offset from UTC, with a leading zero for a single-digit value.",
+                    formatString : "zz", 
+                },
+                "-7" : {
+                    description : "Hours offset from UTC, with no leading zeros.",
+                    formatString : "z", 
+                },
+                ":" : {
+                    description : "The time separator.",
+                    formatString : ":", 
+                },
+                "/" : {
+                    description : "The date separator.",
+                    formatString : "/", 
+                },
+                "Z" : {
+                    description : "If the date is local time, shows the hours and minutes offset from UTC. If date is UTC, displays the letter 'Z'",
+                    formatString : "K",
+                },
+            };
+        </script>
+    </body>
+</html>
