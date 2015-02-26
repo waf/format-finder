@@ -79,35 +79,43 @@
                 function render() {
                     var collectedMatches = [];
 
+                    // replace the date components with their associated format string.
+                    // populate collectedMatches with objects so we can populate the explanation table.
                     var pattern = input.value
-                        // replace the date components with their associated format string
                         .replace(inputMatcher, function(match) {
-                            if(!match) return;
-
-                            var formatter = formatters[match];
-                            if(!formatter) {
-                                // if nothing matched direct lookup, assume it's a character literal
-                                formatter = formatters["[a-zA-Z]"];
-                            }
-                            if(formatter.callback) {
-                                // give formatters a chance to react to their input
-                                formatter = formatter.callback(match, formatter);
-                            }
-                            collectedMatches.push({
-                                match: match,
-                                formatString: formatter.formatString,
-                                description: formatter.description
-                            });
-                            return formatter.formatString;
+                            return collectAndReplaceMatch(match, collectedMatches);
                         })
+
                     // display result
-                    output.innerHTML = pattern;
-                    explanationRows.innerHTML = collectedMatches.map(function(element) {
+                    output.textContent = pattern;
+                    explanationRows.innerHTML = createExplanations(collectedMatches);
+                    explanation.style.display = collectedMatches.length ? "table" : "none";
+                }
+                function createExplanations(collectedMatches) {
+                    return collectedMatches.map(function(element) {
                         return "<tr><td>" + element.formatString + "</td><td>" + 
                                             element.match + "</td><td>" + 
                                             element.description + "</td></tr>";
                     }).join("");
-                    explanation.style.display = collectedMatches.length ? "table" : "none";
+                }
+                function collectAndReplaceMatch(match, collectedMatches) {
+                    if(!match) return;
+
+                    var formatter = formatters[match];
+                    if(!formatter) {
+                        // if nothing matched direct lookup, assume it's a character literal
+                        formatter = formatters["[a-zA-Z]"];
+                    }
+                    if(formatter.callback) {
+                        // give formatters a chance to react to their input
+                        formatter = formatter.callback(match, formatter);
+                    }
+                    collectedMatches.push({
+                        match: match,
+                        formatString: formatter.formatString,
+                        description: formatter.description
+                    });
+                    return formatter.formatString;
                 }
 
                 // rerun whever the user types in the input box or changes the radio buttons
@@ -240,7 +248,7 @@
                     description : "The second, from 00 through 59.",
                     formatString : "ss", 
                 },
-                "PM" : {
+                "AM" : {
                     description : "The AM/PM designator.",
                     formatString : "tt", 
                 },
