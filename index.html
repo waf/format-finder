@@ -25,7 +25,7 @@
             #explanation {
                 display:none;
                 text-align:left;
-                width:36em;
+                width:768px;
                 margin:0 auto;
                 border-collapse:collapse;
                 border-spacing:0;
@@ -40,7 +40,15 @@
                 background-color:#E6F6FF;
             }
             #explanation #description {
-                width:400px;
+                width:500px;
+            }
+            #format-char-warning {
+                display:none;
+                text-align:center;
+                margin:1em auto;
+                width: 36em;
+                padding:1em;
+                background-color:#E6F6FF;
             }
         </style>
     </head>
@@ -49,7 +57,7 @@
         <p>Monday, March 1st, 2009 at 8:04AM (5.6666666 seconds, UTC-7)?</p>
         <form>
             <p>
-                <input type="text" id="input" autofocus spellcheck="false" />
+                <input type="text" id="input" spellcheck="false" autofocus />
             </p>
             <label><input type="radio" name="clockMode" id="mode-24-hour" checked>24-Hour</label>
             <label><input type="radio" name="clockMode" id="mode-12-hour">12-Hour</label>
@@ -64,14 +72,15 @@
             <tbody>
             </tbody>
         </table>
+        <div id="format-char-warning">Your input has resulted in a single <em>custom</em> format character that conflicts with a <em>standard</em> format character. In this case, you must prefix the character with the percent sign (%).</div>
         <script>
             window.addEventListener("load", function() {
                 // references to HTML elements
                 var form = document.querySelector("form");
                 var input = form.querySelector("#input");
                 var output = document.querySelector("#output");
-                var explanation = document.querySelector("#explanation");
-                var explanationRows = explanation.querySelector("tbody");
+                var explanation = document.querySelector("#explanation tbody");
+                var singleFormatCharWarning = document.querySelector("#format-char-warning");
 
                 // create our regex to detect when the user types something that should be replaced by a format string
                 var inputMatcher = new RegExp(Object.keys(formatters).join("|"),"g"); 
@@ -81,15 +90,20 @@
 
                     // replace the date components with their associated format string.
                     // populate collectedMatches with objects so we can populate the explanation table.
-                    var pattern = input.value
-                        .replace(inputMatcher, function(match) {
-                            return collectAndReplaceMatch(match, collectedMatches);
-                        })
+                    var pattern = input.value.replace(inputMatcher, function(match) {
+                        return collectAndReturnMatch(match, collectedMatches);
+                    });
 
+                    // standard format char / custom format char collision handling.
+                    var isSingleFormatChar = collectedMatches.length === 1 && 
+                        !collectedMatches[0].isStandard &&
+                        collectedMatches[0].formatString.length === 1;
+                    
                     // display result
-                    output.textContent = pattern;
-                    explanationRows.innerHTML = createExplanations(collectedMatches);
-                    explanation.style.display = collectedMatches.length ? "table" : "none";
+                    output.textContent = (isSingleFormatChar ? "%" : "") + pattern;
+                    explanation.innerHTML = createExplanations(collectedMatches);
+                    singleFormatCharWarning.style.display = isSingleFormatChar ? "block" : "none";
+                    explanation.parentNode.style.display = collectedMatches.length ? "table" : "none";
                 }
                 function createExplanations(collectedMatches) {
                     return collectedMatches.map(function(element) {
@@ -98,7 +112,7 @@
                                             element.description + "</td></tr>";
                     }).join("");
                 }
-                function collectAndReplaceMatch(match, collectedMatches) {
+                function collectAndReturnMatch(match, collectedMatches) {
                     if(!match) return;
 
                     var formatter = formatters[match];
@@ -113,7 +127,8 @@
                     collectedMatches.push({
                         match: match,
                         formatString: formatter.formatString,
-                        description: formatter.description
+                        description: formatter.description,
+                        isStandard: formatter.isStandard
                     });
                     return formatter.formatString;
                 }
@@ -124,6 +139,91 @@
             }, false);
 
             var formatters = {
+                "Monday, March 1, 2009 8:04:05 PM": {
+                    description: "Universal full date/time pattern.",
+                    formatString: "U",
+                    alternate: {
+                        "F": "Full date/time pattern (long time).",
+                    },
+                    isStandard: true
+                },
+                "Monday, March 1, 2009 8:04 AM": {
+                    description: "Full date/time pattern (short time).",
+                    formatString: "f",
+                    isStandard: true
+                },
+                "Monday, March 1, 2009": {
+                    description: "Long date pattern.",
+                    formatString: "D",
+                    isStandard: true
+                },
+                "3/01/2009 8:04:05 AM": {
+                    description: "General date/time pattern (long time).",
+                    formatString: "G",
+                    isStandard: true
+                },
+                "3/01/2009 8:04 AM": {
+                    description: "General date/time pattern (short time).",
+                    formatString: "g",
+                    isStandard: true
+                },
+                "3/01/2009": {
+                    description: "Short date pattern.",
+                    formatString: "d",
+                    isStandard: true
+                },
+                "2009-03-01T08:04:05.6666666" : {
+                    description: "Round-trip date/time pattern.",
+                    formatString: "O", 
+                    alternate: {
+                        "o" : "Round-trip date/time pattern."
+                    },
+                    isStandard: true
+                },
+                "2009-03-01 08:04:05Z": {
+                    description: "Universal sortable date/time pattern.",
+                    formatString: "u",
+                    isStandard: true
+                },
+                "2009-03-01T08:04:05": {
+                    description: "Sortable date/time pattern.",
+                    formatString: "s",
+                    isStandard: true
+                },
+                "Mon, 01 Mar 2009 08:04:05 GMT": {
+                    description: "RFC1123 pattern.",
+                    formatString: "R",
+                    alternate: {
+                        "r": "RFC1123 pattern."
+                    },
+                    isStandard: true
+                },
+                "March, 2009" : {
+                    description: "Year month pattern.",
+                    formatString: "Y", 
+                    alternate: {
+                        "y": "Year month pattern"
+                    },
+                    isStandard: true
+                },
+                "March 1" : {
+                    description: "Month/day pattern.",
+                    formatString: "M",
+                    alternate: {
+                        "m": "Month/day pattern"
+                    },
+                    isStandard: true
+                },
+                "8:04:05 AM": {
+                    description: "Long time pattern.",
+                    formatString: "T",
+                    isStandard: true
+                },
+                "8:04 AM": {
+                    description: "Short time pattern.",
+                    formatString: "t",
+                    isStandard: true
+                },
                 "8" : {
                     description : "The hour, using a 12-hour clock from 1 to 12.",
                     formatString : "h", 
