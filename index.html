@@ -2,7 +2,7 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title></title>
+        <title>.NET Format Finder</title>
         <style>
             body {
                 font-family:sans-serif;
@@ -73,15 +73,8 @@
                 var explanation = document.querySelector("#explanation");
                 var explanationRows = explanation.querySelector("tbody");
 
-                // create our regex to detect when the user types something that could be replaced by a format string
-                var formatMatches = Object.keys(formats);
-                var inputMatcher = new RegExp(formatMatches.join("|"),"g"); 
-                // read the list of all format strings, so we can properly escape them
-                var formatStringRegex = new RegExp(formatMatches.map(function(key) {
-                        return formats[key].formatString;
-                    }).filter(function(formatString) {
-                        return /[a-zA-Z]/.test(formatString);
-                    }).join("|"), "g");
+                // create our regex to detect when the user types something that should be replaced by a format string
+                var inputMatcher = new RegExp(Object.keys(formatters).join("|"),"g"); 
 
                 function render() {
                     var collectedMatches = [];
@@ -89,23 +82,30 @@
                     var pattern = input.value
                         // replace the date components with their associated format string
                         .replace(inputMatcher, function(match) {
-                            var formatter = formats[match];
+                            if(!match) return;
+
+                            var formatter = formatters[match];
+                            if(!formatter) {
+                                // if nothing matched direct lookup, assume it's a character literal
+                                formatter = formatters["[a-zA-Z]"];
+                            }
                             if(formatter.callback) {
-                                formatter = formatter.callback(formatter);
+                                // give formatters a chance to react to their input
+                                formatter = formatter.callback(match, formatter);
                             }
                             collectedMatches.push({
                                 match: match,
-                                formatter: formatter
+                                formatString: formatter.formatString,
+                                description: formatter.description
                             });
-                            return "<span class='match'>" + formatter.formatString + "</span>";
-                        });
-
+                            return formatter.formatString;
+                        })
                     // display result
                     output.innerHTML = pattern;
                     explanationRows.innerHTML = collectedMatches.map(function(element) {
-                        return "<tr><td>" + element.formatter.formatString + "</td><td>" + 
+                        return "<tr><td>" + element.formatString + "</td><td>" + 
                                             element.match + "</td><td>" + 
-                                            element.formatter.description + "</td></tr>";
+                                            element.description + "</td></tr>";
                     }).join("");
                     explanation.style.display = collectedMatches.length ? "table" : "none";
                 }
@@ -115,11 +115,11 @@
                 form.addEventListener("click", render, false);
             }, false);
 
-            var formats = {
+            var formatters = {
                 "8" : {
                     description : "The hour, using a 12-hour clock from 1 to 12.",
                     formatString : "h", 
-                    callback : function(format) {
+                    callback : function(match, format) {
                         return document.querySelector("#mode-24-hour").checked ? {
                             formatString: "H",
                             description : "The hour, using a 24-hour clock from 0 to 23.",
@@ -129,7 +129,7 @@
                 "08" : {
                     description : "The hour, using a 12-hour clock from 01 to 12.",
                     formatString : "hh", 
-                    callback : function(format) {
+                    callback : function(match, format) {
                         return document.querySelector("#mode-24-hour").checked ? {
                             formatString: "HH",
                             description : "The hour, using a 24-hour clock from 00 to 23.",
@@ -294,6 +294,14 @@
                     description : "If the date is local time, shows the hours and minutes offset from UTC. If date is UTC, displays the letter 'Z'",
                     formatString : "K",
                 },
+                "[a-zA-Z]" : {
+                    callback : function(match, format) {
+                        return {
+                            formatString: "\\" + match,
+                            description : "Character literal",
+                        };
+                    }
+                }
             };
         </script>
     </body>
