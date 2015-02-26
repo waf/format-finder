@@ -57,7 +57,7 @@
         <p>Monday, March 1st, 2009 at 8:04AM (5.6666666 seconds, UTC-7)?</p>
         <form>
             <p>
-                <input type="text" id="input" spellcheck="false" autofocus />
+                <input type="text" id="input" spellcheck="false" placeholder="e.g. 2009-03-01" />
             </p>
             <label><input type="radio" name="clockMode" id="mode-24-hour" checked>24-Hour</label>
             <label><input type="radio" name="clockMode" id="mode-12-hour">12-Hour</label>
@@ -82,8 +82,16 @@
                 var explanation = document.querySelector("#explanation tbody");
                 var singleFormatCharWarning = document.querySelector("#format-char-warning");
 
+                input.addEventListener("focus", function(e) {
+                    input.placeholder = '';
+                }, false);
                 // create our regex to detect when the user types something that should be replaced by a format string
-                var inputMatcher = new RegExp(Object.keys(formatters).join("|"),"g"); 
+                var inputMatcher = new RegExp(formatters.map(function(f) { return f.match; }).join("|"),"g"); 
+                // transform the formatter list into a map, so we do fast lookups on the input
+                var lookup = {};
+                formatters.forEach(function (element) {
+                    lookup[element.match] = element;
+                });
 
                 function render() {
                     var collectedMatches = [];
@@ -115,10 +123,10 @@
                 function collectAndReturnMatch(match, collectedMatches) {
                     if(!match) return;
 
-                    var formatter = formatters[match];
+                    var formatter = lookup[match];
                     if(!formatter) {
                         // if nothing matched direct lookup, assume it's a character literal
-                        formatter = formatters["[a-zA-Z]"];
+                        formatter = lookup["[a-zA-Z]"];
                     }
                     if(formatter.callback) {
                         // give formatters a chance to react to their input
@@ -138,8 +146,9 @@
                 form.addEventListener("click", render, false);
             }, false);
 
-            var formatters = {
-                "Monday, March 1, 2009 8:04:05 PM": {
+            var formatters = [
+                {
+                    match: "Monday, March 1, 2009 8:04:05 AM",
                     description: "Universal full date/time pattern.",
                     formatString: "U",
                     alternate: {
@@ -147,32 +156,38 @@
                     },
                     isStandard: true
                 },
-                "Monday, March 1, 2009 8:04 AM": {
+                {
+                    match: "Monday, March 1, 2009 8:04 AM",
                     description: "Full date/time pattern (short time).",
                     formatString: "f",
                     isStandard: true
                 },
-                "Monday, March 1, 2009": {
+                {
+                    match: "Monday, March 1, 2009",
                     description: "Long date pattern.",
                     formatString: "D",
                     isStandard: true
                 },
-                "3/01/2009 8:04:05 AM": {
+                {
+                    match: "3/01/2009 8:04:05 AM",
                     description: "General date/time pattern (long time).",
                     formatString: "G",
                     isStandard: true
                 },
-                "3/01/2009 8:04 AM": {
+                {
+                    match: "3/01/2009 8:04 AM",
                     description: "General date/time pattern (short time).",
                     formatString: "g",
                     isStandard: true
                 },
-                "3/01/2009": {
+                {
+                    match: "3/01/2009",
                     description: "Short date pattern.",
                     formatString: "d",
                     isStandard: true
                 },
-                "2009-03-01T08:04:05.6666666" : {
+                {
+                    match: "2009-03-01T08:04:05.6666666", 
                     description: "Round-trip date/time pattern.",
                     formatString: "O", 
                     alternate: {
@@ -180,17 +195,20 @@
                     },
                     isStandard: true
                 },
-                "2009-03-01 08:04:05Z": {
+                {
+                    match: "2009-03-01 08:04:05Z",
                     description: "Universal sortable date/time pattern.",
                     formatString: "u",
                     isStandard: true
                 },
-                "2009-03-01T08:04:05": {
+                {
+                    match: "2009-03-01T08:04:05",
                     description: "Sortable date/time pattern.",
                     formatString: "s",
                     isStandard: true
                 },
-                "Mon, 01 Mar 2009 08:04:05 GMT": {
+                {
+                    match: "Mon, 01 Mar 2009 08:04:05 GMT",
                     description: "RFC1123 pattern.",
                     formatString: "R",
                     alternate: {
@@ -198,7 +216,8 @@
                     },
                     isStandard: true
                 },
-                "March, 2009" : {
+                {
+                    match: "March, 2009" ,
                     description: "Year month pattern.",
                     formatString: "Y", 
                     alternate: {
@@ -206,7 +225,8 @@
                     },
                     isStandard: true
                 },
-                "March 1" : {
+                {
+                    match: "March 1" ,
                     description: "Month/day pattern.",
                     formatString: "M",
                     alternate: {
@@ -214,17 +234,20 @@
                     },
                     isStandard: true
                 },
-                "8:04:05 AM": {
+                {
+                    match: "8:04:05 AM",
                     description: "Long time pattern.",
                     formatString: "T",
                     isStandard: true
                 },
-                "8:04 AM": {
+                {
+                    match: "8:04 AM",
                     description: "Short time pattern.",
                     formatString: "t",
                     isStandard: true
                 },
-                "8" : {
+                {
+                    match: "8" ,
                     description : "The hour, using a 12-hour clock from 1 to 12.",
                     formatString : "h", 
                     callback : function(match, format) {
@@ -234,7 +257,8 @@
                         } : format;
                     }
                 },
-                "08" : {
+                {
+                    match: "08" ,
                     description : "The hour, using a 12-hour clock from 01 to 12.",
                     formatString : "hh", 
                     callback : function(match, format) {
@@ -244,165 +268,198 @@
                         } : format;
                     }
                 },
-                "1" : {
+                {
+                    match: "1" ,
                     description : "The day of the month, from 1 through 31.",
                     formatString : "d", 
                 },
-                "01" : {
+                {
+                    match: "01" ,
                     description : "The day of the month, from 01 through 31.",
                     formatString : "dd", 
                 },
-                "Monday" : {
+                {
+                    match: "Monday" ,
                     description : "The full name of the day of the week.",
                     formatString : "dddd", 
                 },
-                "Mon" : {
+                {
+                    match: "Mon" ,
                     description : "The abbreviated name of the day of the week.",
                     formatString : "ddd", 
                 },
-                "6666666" : {
+                {
+                    match: "6666666" ,
                     description : "The ten millionths of a second in a date and time value.",
                     formatString : "fffffff", 
                     alternate : {
                         "FFFFFFF" : "If non-zero, the ten millionths of a second in a date and time value.",
                     }
                 },
-                "666666" : {
+                {
+                    match: "666666" ,
                     description : "The millionths of a second in a date and time value.",
                     formatString : "ffffff", 
                     alternate : {
                         "FFFFFF" : "If non-zero, the millionths of a second in a date and time value.",
                     }
                 },
-                "66666" : {
+                {
+                    match: "66666" ,
                     description : "The hundred thousandths of a second in a date and time value.",
                     formatString : "fffff", 
                     alternate : {
                         "FFFFF" : "If non-zero, the hundred thousandths of a second in a date and time value.",
                     }
                 },
-                "6666" : {
+                {
+                    match: "6666" ,
                     description : "The ten thousandths of a second in a date and time value.",
                     formatString : "ffff", 
                     alternate : {
                         "FFFF" : "If non-zero, the ten thousandths of a second in a date and time value.",
                     }
                 },
-                "666" : {
+                {
+                    match: "666" ,
                     description : "The milliseconds in a date and time value.",
                     formatString : "fff", 
                     alternate : {
                         "FFF" : "If non-zero, the milliseconds in a date and time value.",
                     }
                 },
-                "66" : {
+                {
+                    match: "66" ,
                     description : "The hundredths of a second in a date and time value.",
                     formatString : "ff", 
                     alternate : {
                         "FF" : "If non-zero, the hundredths of a second in a date and time value.",
                     }
                 },
-                "6" : {
+                {
+                    match: "6" ,
                     description : "The tenths of a second in a date and time value.",
                     formatString : "f", 
                     alternate : {
                         "F" : "If non-zero, the tenths of a second in a date and time value.",
                     }
                 },
-                "A\.D\." : {
+                {
+                    match: "A\.D\." ,
                     description : "The period or era.",
                     formatString : "g", 
                     alternate:  {
                         "gg" : "An alternate representation of the same thing."
                     }
                 },
-                "4" : {
+                {
+                    match: "4" ,
                     description : "The minute, from 0 through 59.",
                     formatString : "m", 
                 },
-                "04" : {
+                {
+                    match: "04" ,
                     description : "The minute, from 00 through 59.",
                     formatString : "mm", 
                 },
-                "3" : {
+                {
+                    match: "3" ,
                     description : "The month, from 1 through 12.",
                     formatString : "M", 
                 },
-                "03" : {
+                {
+                    match: "03" ,
                     description : "The month, from 01 through 12.",
                     formatString : "MM", 
                 },
-                "March" : {
+                {
+                    match: "March" ,
                     description : "The full name of the month.",
                     formatString : "MMMM", 
                 },
-                "Mar" : {
+                {
+                    match: "Mar" ,
                     description : "The abbreviated name of the month.",
                     formatString : "MMM", 
                 },
-                "5" : {
+                {
+                    match: "5" ,
                     description : "The second, from 0 through 59.",
                     formatString : "s", 
                 },
-                "05" : {
+                {
+                    match: "05" ,
                     description : "The second, from 00 through 59.",
                     formatString : "ss", 
                 },
-                "AM" : {
+                {
+                    match: "AM" ,
                     description : "The AM/PM designator.",
                     formatString : "tt", 
                 },
-                "P" : {
+                {
+                    match: "P" ,
                     description : "The first character of the AM/PM designator.",
                     formatString : "t", 
                 },
-                "9" : {
+                {
+                    match: "9" ,
                     description : "The year, from 0 to 99.",
                     formatString : "y", 
                 },
-                "09" : {
+                {
+                    match: "09" ,
                     description : "The year, from 00 to 99.",
                     formatString : "yy", 
                 },
-                "2009" : {
+                {
+                    match: "2009" ,
                     description : "The year as a four-digit number.",
                     formatString : "yyyy", 
                     alternate: {
                         "yyy" : "The year, with a minimum of three digits.",
                     }
                 },
-                "02009" : {
+                {
+                    match: "02009" ,
                     description : "The year as a five-digit number.",
                     formatString : "yyyyy", 
                 },
-                "-07:00" : {
+                {
+                    match: "-07:00" ,
                     description : "If the date is local time, shows the hours and minutes offset from UTC. If date is UTC, displays the letter 'Z'",
                     formatString : "K", 
                     alternate: {
                         "zzz": "Hours and minutes offset from UTC"
                     }
                 },
-                "-07" : {
+                {
+                    match: "-07" ,
                     description : "Hours offset from UTC, with a leading zero for a single-digit value.",
                     formatString : "zz", 
                 },
-                "-7" : {
+                {
+                    match: "-7" ,
                     description : "Hours offset from UTC, with no leading zeros.",
                     formatString : "z", 
                 },
-                ":" : {
+                {
+                    match: ":" ,
                     description : "The time separator.",
                     formatString : ":", 
                 },
-                "/" : {
+                {
+                    match: "/" ,
                     description : "The date separator.",
                     formatString : "/", 
                 },
-                "Z" : {
+                {
+                    match: "Z" ,
                     description : "If the date is local time, shows the hours and minutes offset from UTC. If date is UTC, displays the letter 'Z'",
                     formatString : "K",
                 },
-                "[a-zA-Z]" : {
+                {
+                    match: "[a-zA-Z]",
                     callback : function(match, format) {
                         return {
                             formatString: "\\" + match,
@@ -410,7 +467,7 @@
                         };
                     }
                 }
-            };
+            ];
         </script>
     </body>
 </html>
